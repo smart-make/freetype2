@@ -218,25 +218,24 @@ THE SOFTWARE.
     FT_FREE( face->metrics );
 
     /* free properties */
+    if ( face->properties )
     {
-      PCF_Property  prop;
-      FT_Int        i;
+      FT_Int  i;
 
 
-      if ( face->properties )
+      for ( i = 0; i < face->nprops; i++ )
       {
-        for ( i = 0; i < face->nprops; i++ )
-        {
-          prop = &face->properties[i];
+        PCF_Property  prop = &face->properties[i];
 
-          if ( prop )
-          {
-            FT_FREE( prop->name );
-            if ( prop->isString )
-              FT_FREE( prop->value.atom );
-          }
+
+        if ( prop )
+        {
+          FT_FREE( prop->name );
+          if ( prop->isString )
+            FT_FREE( prop->value.atom );
         }
       }
+
       FT_FREE( face->properties );
     }
 
@@ -264,7 +263,7 @@ THE SOFTWARE.
                  FT_Parameter*  params )
   {
     PCF_Face  face  = (PCF_Face)pcfface;
-    FT_Error  error = FT_Err_Ok;
+    FT_Error  error;
 
     FT_UNUSED( num_params );
     FT_UNUSED( params );
@@ -532,7 +531,7 @@ THE SOFTWARE.
     /* XXX: to do: are there cases that need repadding the bitmap? */
     bytes = bitmap->pitch * bitmap->rows;
 
-    error = ft_glyphslot_alloc_bitmap( slot, bytes );
+    error = ft_glyphslot_alloc_bitmap( slot, (FT_ULong)bytes );
     if ( error )
       goto Exit;
 
@@ -699,10 +698,6 @@ THE SOFTWARE.
     0,                      /* FT_Slot_InitFunc */
     0,                      /* FT_Slot_DoneFunc */
 
-#ifdef FT_CONFIG_OPTION_OLD_INTERNALS
-    ft_stub_set_char_sizes,
-    ft_stub_set_pixel_sizes,
-#endif
     PCF_Glyph_Load,
 
     0,                      /* FT_Face_GetKerningFunc  */

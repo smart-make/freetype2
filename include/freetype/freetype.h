@@ -98,7 +98,10 @@ FT_BEGIN_HEADER
   /*    FT_FACE_FLAG_FIXED_WIDTH                                           */
   /*    FT_FACE_FLAG_HORIZONTAL                                            */
   /*    FT_FACE_FLAG_VERTICAL                                              */
+  /*    FT_FACE_FLAG_COLOR                                                 */
   /*    FT_FACE_FLAG_SFNT                                                  */
+  /*    FT_FACE_FLAG_CID_KEYED                                             */
+  /*    FT_FACE_FLAG_TRICKY                                                */
   /*    FT_FACE_FLAG_KERNING                                               */
   /*    FT_FACE_FLAG_MULTIPLE_MASTERS                                      */
   /*    FT_FACE_FLAG_GLYPH_NAMES                                           */
@@ -329,12 +332,14 @@ FT_BEGIN_HEADER
   /*    It also embeds a memory manager (see @FT_Memory), as well as a     */
   /*    scan-line converter object (see @FT_Raster).                       */
   /*                                                                       */
-  /*    For multi-threading applications each thread should have its own   */
-  /*    FT_Library object.                                                 */
+  /*    In multi-threaded applications, make sure that the same FT_Library */
+  /*    object or any of its children doesn't get accessed in parallel.    */
   /*                                                                       */
   /* <Note>                                                                */
   /*    Library objects are normally created by @FT_Init_FreeType, and     */
-  /*    destroyed with @FT_Done_FreeType.                                  */
+  /*    destroyed with @FT_Done_FreeType.  If you need reference-counting  */
+  /*    (cf. @FT_Reference_Library), use @FT_New_Library and               */
+  /*    @FT_Done_Library.                                                  */
   /*                                                                       */
   typedef struct FT_LibraryRec_  *FT_Library;
 
@@ -550,11 +555,12 @@ FT_BEGIN_HEADER
   /*    FT_ENCODING_MS_SYMBOL ::                                           */
   /*      Corresponds to the Microsoft Symbol encoding, used to encode     */
   /*      mathematical symbols in the 32..255 character code range.  For   */
-  /*      more information, see `http://www.ceviz.net/symbol.htm'.         */
+  /*      more information, see                                            */
+  /*      `http://www.kostis.net/charsets/symbol.htm'.                     */
   /*                                                                       */
   /*    FT_ENCODING_SJIS ::                                                */
   /*      Corresponds to Japanese SJIS encoding.  More info at             */
-  /*      at `http://langsupport.japanreference.com/encoding.shtml'.       */
+  /*      at `http://en.wikipedia.org/wiki/Shift_JIS'.                     */
   /*      See note on multi-byte encodings below.                          */
   /*                                                                       */
   /*    FT_ENCODING_GB2312 ::                                              */
@@ -568,7 +574,7 @@ FT_BEGIN_HEADER
   /*    FT_ENCODING_WANSUNG ::                                             */
   /*      Corresponds to the Korean encoding system known as Wansung.      */
   /*      For more information see                                         */
-  /*      `http://www.microsoft.com/typography/unicode/949.txt'.           */
+  /*      `http://msdn.microsoft.com/en-US/goglobal/cc305154'.             */
   /*                                                                       */
   /*    FT_ENCODING_JOHAB ::                                               */
   /*      The Korean standard character set (KS~C 5601-1992), which        */
@@ -646,7 +652,7 @@ FT_BEGIN_HEADER
   /*    @FT_Get_CMap_Language_ID  to query the Mac language ID which may   */
   /*    be needed to be able to distinguish Apple encoding variants.  See  */
   /*                                                                       */
-  /*      http://www.unicode.org/Public/MAPPINGS/VENDORS/APPLE/README.TXT  */
+  /*      http://www.unicode.org/Public/MAPPINGS/VENDORS/APPLE/Readme.txt  */
   /*                                                                       */
   /*    to get an idea how to do that.  Basically, if the language ID      */
   /*    is~0, don't use it, otherwise subtract 1 from the language ID.     */
@@ -1073,6 +1079,10 @@ FT_BEGIN_HEADER
   /*      Currently, there are about a dozen TrueType fonts in the list of */
   /*      tricky fonts; they are hard-coded in file `ttobjs.c'.            */
   /*                                                                       */
+  /*    FT_FACE_FLAG_COLOR ::                                              */
+  /*      Set if the font has color glyph tables.  To access color glyphs  */
+  /*      use @FT_LOAD_COLOR.                                              */
+  /*                                                                       */
 #define FT_FACE_FLAG_SCALABLE          ( 1L <<  0 )
 #define FT_FACE_FLAG_FIXED_SIZES       ( 1L <<  1 )
 #define FT_FACE_FLAG_FIXED_WIDTH       ( 1L <<  2 )
@@ -1087,6 +1097,7 @@ FT_BEGIN_HEADER
 #define FT_FACE_FLAG_HINTER            ( 1L << 11 )
 #define FT_FACE_FLAG_CID_KEYED         ( 1L << 12 )
 #define FT_FACE_FLAG_TRICKY            ( 1L << 13 )
+#define FT_FACE_FLAG_COLOR             ( 1L << 14 )
 
 
   /*************************************************************************
@@ -1269,6 +1280,20 @@ FT_BEGIN_HEADER
    */
 #define FT_IS_TRICKY( face ) \
           ( face->face_flags & FT_FACE_FLAG_TRICKY )
+
+
+  /*************************************************************************
+   *
+   * @macro:
+   *   FT_HAS_COLOR( face )
+   *
+   * @description:
+   *   A macro that returns true whenever a face object contains
+   *   tables for color glyphs.
+   *
+   */
+#define FT_HAS_COLOR( face ) \
+          ( face->face_flags & FT_FACE_FLAG_COLOR )
 
 
   /*************************************************************************/
@@ -1678,6 +1703,9 @@ FT_BEGIN_HEADER
   /*    For multi-threading applications each thread should have its own   */
   /*    FT_Library object.                                                 */
   /*                                                                       */
+  /*    If you need reference-counting (cf. @FT_Reference_Library), use    */
+  /*    @FT_New_Library and @FT_Done_Library.                              */
+  /*                                                                       */
   FT_EXPORT( FT_Error )
   FT_Init_FreeType( FT_Library  *alibrary );
 
@@ -1871,6 +1899,10 @@ FT_BEGIN_HEADER
   /*                                                                       */
   /* <Return>                                                              */
   /*    FreeType error code.  0~means success.                             */
+  /*                                                                       */
+  /* <Note>                                                                */
+  /*    Use @FT_Done_Face to destroy the created @FT_Face object (along    */
+  /*    with its slot and sizes).                                          */
   /*                                                                       */
   FT_EXPORT( FT_Error )
   FT_New_Face( FT_Library   library,
@@ -2523,6 +2555,14 @@ FT_BEGIN_HEADER
    *   FT_LOAD_NO_AUTOHINT ::
    *     Disable auto-hinter.  See also the note below.
    *
+   *   FT_LOAD_COLOR ::
+   *     This flag is used to request loading of color embedded-bitmap
+   *     images.  The resulting color bitmaps, if available, will have the
+   *     @FT_PIXEL_MODE_BGRA format.  When the flag is not used and color
+   *     bitmaps are found, they will be converted to 256-level gray
+   *     bitmaps transparently.  Those bitmaps will be in the
+   *     @FT_PIXEL_MODE_GRAY format.
+   *
    * @note:
    *   By default, hinting is enabled and the font's native hinter (see
    *   @FT_FACE_FLAG_HINTER) is preferred over the auto-hinter.  You can
@@ -2560,6 +2600,8 @@ FT_BEGIN_HEADER
 #define FT_LOAD_MONOCHROME                   ( 1L << 12 )
 #define FT_LOAD_LINEAR_DESIGN                ( 1L << 13 )
 #define FT_LOAD_NO_AUTOHINT                  ( 1L << 15 )
+  /* Bits 16..19 are used by `FT_LOAD_TARGET_' */
+#define FT_LOAD_COLOR                        ( 1L << 20 )
 
   /* */
 
@@ -3881,8 +3923,8 @@ FT_BEGIN_HEADER
    *
    */
 #define FREETYPE_MAJOR  2
-#define FREETYPE_MINOR  4
-#define FREETYPE_PATCH  11
+#define FREETYPE_MINOR  5
+#define FREETYPE_PATCH  0
 
 
   /*************************************************************************/

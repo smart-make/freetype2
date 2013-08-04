@@ -555,6 +555,7 @@
 #endif
     FT_Bool       has_outline;
     FT_Bool       is_apple_sbit;
+    FT_Bool       is_apple_sbix;
     FT_Bool       ignore_preferred_family    = FALSE;
     FT_Bool       ignore_preferred_subfamily = FALSE;
 
@@ -608,6 +609,14 @@
 #endif
 
     is_apple_sbit = 0;
+    is_apple_sbix = !face->goto_table( face, TTAG_sbix, stream, 0 );
+
+    /* Apple 'sbix' color bitmaps are rendered scaled and then the 'glyf'
+     * outline rendered on top.  We don't support that yet, so just ignore
+     * the 'glyf' outline and advertise it as a bitmap-only font. */
+    if ( is_apple_sbix )
+      has_outline = FALSE;
+
 
     /* if this font doesn't contain outlines, we try to load */
     /* a `bhed' table                                        */
@@ -619,7 +628,7 @@
 
     /* load the font header (`head' table) if this isn't an Apple */
     /* sbit font file                                             */
-    if ( !is_apple_sbit )
+    if ( !is_apple_sbit || is_apple_sbix )
     {
       LOAD_( head );
       if ( error )
@@ -803,6 +812,10 @@
       /*                                                                   */
       /* Compute face flags.                                               */
       /*                                                                   */
+      if ( face->sbit_table_type == TT_SBIT_TABLE_TYPE_CBLC ||
+           face->sbit_table_type == TT_SBIT_TABLE_TYPE_SBIX )
+        flags |= FT_FACE_FLAG_COLOR;      /* color glyphs */
+
       if ( has_outline == TRUE )
         flags |= FT_FACE_FLAG_SCALABLE;   /* scalable outlines */
 
@@ -919,11 +932,7 @@
         FT_UInt  i, count;
 
 
-#ifndef FT_CONFIG_OPTION_OLD_INTERNALS
         count = face->sbit_num_strikes;
-#else
-        count = (FT_UInt)face->num_sbit_strikes;
-#endif
 
         if ( count > 0 )
         {
@@ -1124,7 +1133,6 @@
     }
 
     /* freeing the horizontal metrics */
-#ifndef FT_CONFIG_OPTION_OLD_INTERNALS
     {
       FT_Stream  stream = FT_FACE_STREAM( face );
 
@@ -1134,10 +1142,6 @@
       face->horz_metrics_size = 0;
       face->vert_metrics_size = 0;
     }
-#else
-    FT_FREE( face->horizontal.long_metrics );
-    FT_FREE( face->horizontal.short_metrics );
-#endif
 
     /* freeing the vertical ones, if any */
     if ( face->vertical_info )

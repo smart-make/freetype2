@@ -72,7 +72,7 @@
 
 
 #ifdef FT_CONFIG_OPTION_INCREMENTAL
-#define IS_INCREMENTAL  ( face->root.internal->incremental_interface != 0 )
+#define IS_INCREMENTAL  (FT_Bool)( face->root.internal->incremental_interface != 0 )
 #else
 #define IS_INCREMENTAL  0
 #endif
@@ -320,7 +320,7 @@
 
     mmvar->num_axis        = mmaster.num_axis;
     mmvar->num_designs     = mmaster.num_designs;
-    mmvar->num_namedstyles = ~0;                         /* Does not apply */
+    mmvar->num_namedstyles = ~0U;                        /* Does not apply */
     mmvar->axis            = (FT_Var_Axis*)&mmvar[1];
                                       /* Point to axes after MM_Var struct */
     mmvar->namedstyle      = NULL;
@@ -333,8 +333,8 @@
       mmvar->axis[i].def     = ( mmvar->axis[i].minimum +
                                    mmvar->axis[i].maximum ) / 2;
                             /* Does not apply.  But this value is in range */
-      mmvar->axis[i].strid   = ~0;                       /* Does not apply */
-      mmvar->axis[i].tag     = ~0;                       /* Does not apply */
+      mmvar->axis[i].strid   = ~0U;                      /* Does not apply */
+      mmvar->axis[i].tag     = ~0U;                      /* Does not apply */
 
       if ( ft_strcmp( mmvar->axis[i].name, "Weight" ) == 0 )
         mmvar->axis[i].tag = FT_MAKE_TAG( 'w', 'g', 'h', 't' );
@@ -2209,7 +2209,6 @@
     if ( type1->encoding_type == T1_ENCODING_TYPE_ARRAY )
     {
       FT_Int    charcode, idx, min_char, max_char;
-      FT_Byte*  char_name;
       FT_Byte*  glyph_name;
 
 
@@ -2224,6 +2223,9 @@
       charcode = 0;
       for ( ; charcode < loader.encoding_table.max_elems; charcode++ )
       {
+        FT_Byte*  char_name;
+
+
         type1->encoding.char_index[charcode] = 0;
         type1->encoding.char_name [charcode] = (char *)".notdef";
 

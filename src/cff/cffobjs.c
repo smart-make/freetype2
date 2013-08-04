@@ -17,6 +17,7 @@
 
 
 #include <ft2build.h>
+
 #include FT_INTERNAL_DEBUG_H
 #include FT_INTERNAL_CALC_H
 #include FT_INTERNAL_STREAM_H
@@ -24,11 +25,14 @@
 #include FT_TRUETYPE_IDS_H
 #include FT_TRUETYPE_TAGS_H
 #include FT_INTERNAL_SFNT_H
+#include FT_CFF_DRIVER_H
+
 #include "cffobjs.h"
 #include "cffload.h"
 #include "cffcmap.h"
-#include "cfferrs.h"
 #include "cffpic.h"
+
+#include "cfferrs.h"
 
 
   /*************************************************************************/
@@ -401,7 +405,7 @@
   remove_subset_prefix( FT_String*  name )
   {
     FT_Int32  idx             = 0;
-    FT_Int32  length          = strlen( name ) + 1;
+    FT_Int32  length          = (FT_Int32)strlen( name ) + 1;
     FT_Bool   continue_search = 1;
 
 
@@ -438,8 +442,8 @@
     FT_Int32  family_name_length, style_name_length;
 
 
-    family_name_length = strlen( family_name );
-    style_name_length  = strlen( style_name );
+    family_name_length = (FT_Int32)strlen( family_name );
+    style_name_length  = (FT_Int32)strlen( style_name );
 
     if ( family_name_length > style_name_length )
     {
@@ -1046,16 +1050,34 @@
 
 
   FT_LOCAL_DEF( FT_Error )
-  cff_driver_init( FT_Module  module )
+  cff_driver_init( FT_Module  module )        /* CFF_Driver */
   {
-    FT_UNUSED( module );
+    CFF_Driver  driver = (CFF_Driver)module;
+
+
+    /* set default property values, cf `ftcffdrv.h' */
+#ifdef CFF_CONFIG_OPTION_OLD_ENGINE
+    driver->hinting_engine    = FT_CFF_HINTING_FREETYPE;
+#else
+    driver->hinting_engine    = FT_CFF_HINTING_ADOBE;
+#endif
+    driver->no_stem_darkening = FALSE;
+
+    driver->darken_params[0] =  500;
+    driver->darken_params[1] =  400;
+    driver->darken_params[2] = 1000;
+    driver->darken_params[3] =  275;
+    driver->darken_params[4] = 1667;
+    driver->darken_params[5] =  275;
+    driver->darken_params[6] = 2333;
+    driver->darken_params[7] =    0;
 
     return FT_Err_Ok;
   }
 
 
   FT_LOCAL_DEF( void )
-  cff_driver_done( FT_Module  module )
+  cff_driver_done( FT_Module  module )        /* CFF_Driver */
   {
     FT_UNUSED( module );
   }

@@ -42,7 +42,7 @@
   cid_get_offset( FT_Byte*  *start,
                   FT_Byte    offsize )
   {
-    FT_Long   result;
+    FT_ULong  result;
     FT_Byte*  p = *start;
 
 
@@ -53,7 +53,7 @@
     }
 
     *start = p;
-    return result;
+    return (FT_Long)result;
   }
 
 
@@ -150,8 +150,6 @@
   cid_parse_font_matrix( CID_Face     face,
                          CID_Parser*  parser )
   {
-    FT_Matrix*    matrix;
-    FT_Vector*    offset;
     CID_FaceDict  dict;
     FT_Face       root = (FT_Face)&face->root;
     FT_Fixed      temp[6];
@@ -160,6 +158,10 @@
 
     if ( parser->num_dict >= 0 && parser->num_dict < face->cid.num_dicts )
     {
+      FT_Matrix*  matrix;
+      FT_Vector*  offset;
+
+
       dict   = face->cid.font_dicts + parser->num_dict;
       matrix = &dict->font_matrix;
       offset = &dict->font_offset;

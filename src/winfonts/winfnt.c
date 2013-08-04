@@ -1024,7 +1024,7 @@
       bitmap->rows       = font->header.pixel_height;
       bitmap->pixel_mode = FT_PIXEL_MODE_MONO;
 
-      if ( offset + pitch * bitmap->rows >= font->header.file_size )
+      if ( offset + pitch * bitmap->rows > font->header.file_size )
       {
         FT_TRACE2(( "invalid bitmap width\n" ));
         error = FT_THROW( Invalid_File_Format );
@@ -1141,10 +1141,6 @@
     0,                    /* FT_Slot_InitFunc */
     0,                    /* FT_Slot_DoneFunc */
 
-#ifdef FT_CONFIG_OPTION_OLD_INTERNALS
-    ft_stub_set_char_sizes,
-    ft_stub_set_pixel_sizes,
-#endif
     FNT_Load_Glyph,
 
     0,                    /* FT_Face_GetKerningFunc  */

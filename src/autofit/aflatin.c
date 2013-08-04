@@ -76,13 +76,14 @@
       AF_Scaler           scaler = &dummy->root.scaler;
 
 
-      glyph_index = FT_Get_Char_Index( face,
-                                       metrics->root.clazz->standard_char );
+      glyph_index = FT_Get_Char_Index(
+                      face,
+                      metrics->root.script_class->standard_char );
       if ( glyph_index == 0 )
         goto Exit;
 
       FT_TRACE5(( "standard character: 0x%X (glyph index %d)\n",
-                  metrics->root.clazz->standard_char, glyph_index ));
+                  metrics->root.script_class->standard_char, glyph_index ));
 
       error = FT_Load_Glyph( face, glyph_index, FT_LOAD_NO_SCALE );
       if ( error || face->glyph->outline.n_points <= 0 )
@@ -200,12 +201,12 @@
   static const char af_latin_blue_chars[AF_LATIN_MAX_BLUES]
                                        [AF_LATIN_MAX_TEST_CHARACTERS + 1] =
   {
-    "THEZOCQS",
-    "HEZLOCUS",
-    "fijkdbh",
-    "xzroesc",
-    "xzroesc",
-    "pqgjy"
+    "THEZOCQS",  /* capital top    */
+    "HEZLOCUS",  /* capital bottom */
+    "fijkdbh",   /* small f top    */
+    "xzroesc",   /* small top      */
+    "xzroesc",   /* small bottom   */
+    "pqgjy"      /* small minor    */
   };
 
 
@@ -328,9 +329,13 @@
         {
           FT_Pos  best_x = points[best_point].x;
           FT_Int  prev, next;
+          FT_Int  best_segment_first, best_segment_last;
           FT_Int  best_on_point_first, best_on_point_last;
           FT_Pos  dist;
 
+
+          best_segment_first = best_point;
+          best_segment_last  = best_point;
 
           if ( FT_CURVE_TAG( outline.tags[best_point] ) == FT_CURVE_TAG_ON )
           {
@@ -343,8 +348,9 @@
             best_on_point_last  = -1;
           }
 
-          /* look for the previous and next points that are not on the */
-          /* same Y coordinate, then threshold the `closeness'...      */
+          /* look for the previous and next points on the contour  */
+          /* that are not on the same Y coordinate, then threshold */
+          /* the `closeness'...                                    */
           prev = best_point;
           next = prev;
 
@@ -361,6 +367,8 @@
             if ( dist > 5 )
               if ( FT_ABS( points[prev].x - best_x ) <= 20 * dist )
                 break;
+
+            best_segment_first = prev;
 
             if ( FT_CURVE_TAG( outline.tags[prev] ) == FT_CURVE_TAG_ON )
             {
@@ -383,6 +391,8 @@
               if ( FT_ABS( points[next].x - best_x ) <= 20 * dist )
                 break;
 
+            best_segment_last = next;
+
             if ( FT_CURVE_TAG( outline.tags[next] ) == FT_CURVE_TAG_ON )
             {
               best_on_point_last = next;
@@ -392,8 +402,14 @@
 
           } while ( next != best_point );
 
-          /* now set the `round' flag depending on the segment's kind */
-          /* (value 8 is heuristic)                                   */
+          /* now set the `round' flag depending on the segment's kind: */
+          /*                                                           */
+          /* - if the horizontal distance between the first and last   */
+          /*   `on' point is larger than upem/8 (value 8 is heuristic) */
+          /*   we have a flat segment                                  */
+          /* - if either the first or the last point of the segment is */
+          /*   an `off' point, the segment is round, otherwise it is   */
+          /*   flat                                                    */
           if ( best_on_point_first >= 0                               &&
                best_on_point_last >= 0                                &&
                (FT_UInt)( FT_ABS( points[best_on_point_last].x -
@@ -402,8 +418,10 @@
             round = 0;
           else
             round = FT_BOOL(
-              FT_CURVE_TAG( outline.tags[prev] ) != FT_CURVE_TAG_ON ||
-              FT_CURVE_TAG( outline.tags[next] ) != FT_CURVE_TAG_ON );
+                      FT_CURVE_TAG( outline.tags[best_segment_first] ) !=
+                        FT_CURVE_TAG_ON                                   ||
+                      FT_CURVE_TAG( outline.tags[best_segment_last]  ) !=
+                        FT_CURVE_TAG_ON                                   );
 
           FT_TRACE5(( " (%s)\n", round ? "round" : "flat" ));
         }
@@ -743,7 +761,7 @@
 
           if ( delta2 < 32 )
             delta2 = 0;
-          else if ( delta < 48 )
+          else if ( delta2 < 48 )
             delta2 = 32;
           else
             delta2 = 64;
@@ -1787,7 +1805,7 @@
             if ( delta < 0 )
               delta = -delta;
 
-            if (delta >= 16)
+            if ( delta >= 16 )
             {
               dist = org_dist;
               if ( dist < 48 )
@@ -1914,7 +1932,7 @@
           continue;
 
 #ifdef FT_DEBUG_LEVEL_TRACE
-        if (!anchor)
+        if ( !anchor )
           FT_TRACE5(( "  BLUE_ANCHOR: edge %d (opos=%.2f) snapped to %.2f,"
                       " was %.2f (anchor=edge %d)\n",
                       edge1 - edges, edge1->opos / 64.0, blue->fit / 64.0,
@@ -2080,7 +2098,7 @@
 
           cur_pos1 = FT_PIX_ROUND( org_center );
 
-          if (cur_len <= 64 )
+          if ( cur_len <= 64 )
           {
             u_off = 32;
             d_off = 32;
@@ -2430,10 +2448,26 @@
   /*************************************************************************/
 
 
+  AF_DEFINE_WRITING_SYSTEM_CLASS(
+    af_latin_writing_system_class,
+
+    AF_WRITING_SYSTEM_LATIN,
+
+    sizeof ( AF_LatinMetricsRec ),
+
+    (AF_Script_InitMetricsFunc) af_latin_metrics_init,
+    (AF_Script_ScaleMetricsFunc)af_latin_metrics_scale,
+    (AF_Script_DoneMetricsFunc) NULL,
+
+    (AF_Script_InitHintsFunc)   af_latin_hints_init,
+    (AF_Script_ApplyHintsFunc)  af_latin_hints_apply
+  )
+
+
   /* XXX: this should probably fine tuned to differentiate better between */
   /*      scripts...                                                      */
 
-  static const AF_Script_UniRangeRec  af_latin_uniranges[] =
+  static const AF_Script_UniRangeRec  af_latn_uniranges[] =
   {
     AF_UNIRANGE_REC(  0x0020UL,  0x007FUL ),  /* Basic Latin (no control chars) */
     AF_UNIRANGE_REC(  0x00A0UL,  0x00FFUL ),  /* Latin-1 Supplement (no control chars) */
@@ -2467,19 +2501,14 @@
   };
 
 
-  AF_DEFINE_SCRIPT_CLASS( af_latin_script_class,
-    AF_SCRIPT_LATIN,
-    af_latin_uniranges,
-    'o',
+  AF_DEFINE_SCRIPT_CLASS(
+    af_latn_script_class,
 
-    sizeof ( AF_LatinMetricsRec ),
+    AF_SCRIPT_LATN,
+    AF_WRITING_SYSTEM_LATIN,
 
-    (AF_Script_InitMetricsFunc) af_latin_metrics_init,
-    (AF_Script_ScaleMetricsFunc)af_latin_metrics_scale,
-    (AF_Script_DoneMetricsFunc) NULL,
-
-    (AF_Script_InitHintsFunc)   af_latin_hints_init,
-    (AF_Script_ApplyHintsFunc)  af_latin_hints_apply
+    af_latn_uniranges,
+    'o'
   )
 
 
